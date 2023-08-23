@@ -97,51 +97,7 @@ def f_score(recognized, ground_truth, overlap, bg_class=["background"]):
     fn = len(y_label) - sum(hits)
     return float(tp), float(fp), float(fn)
 
-
-def main():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("--dataset", default="gtea")
-    parser.add_argument("--split", default="1")
-
-    args = parser.parse_args()
-
-    #####################
-    # Filepaths
-    #####################
-    # Inputs
-    exp_name = "coffee_base"
-    data_root = "/data/hannah.defazio/ptg_nas/data_copy/"
-    exp_data = f"{data_root}/TCN_data/{exp_name}"
-
-    output_dir = f"/data/ptg/cooking/training/activity_classifier/TCN"
-    save_dir = f"{output_dir}/{exp_name}_focal_loss_smoothing_loss_015"
-
-
-    ground_truth_path = f"{exp_data}/groundTruth/"
-    file_list = f"{exp_data}/splits/test.split{args.split}.bundle"
-
-    recog_path = f"{save_dir}/results/split_{args.split}/"
-
-    mapping_file = f"{exp_data}/mapping.txt"
-
-    # Outputs
-    eval_output = f"{recog_path}/eval"
-    if not os.path.exists(eval_output):
-        os.makedirs(eval_output)
-
-    #####################
-    # Eval
-    #####################
-    # List of activity labels
-    file_ptr = open(mapping_file, "r")
-    actions = file_ptr.read().split("\n")[:-1]
-    file_ptr.close()
-    actions_dict = dict()
-    for a in actions:
-        actions_dict[a.split()[1]] = int(a.split()[0])
-    action_labels = list(actions_dict.keys())
-
+def eval(file_list, ground_truth_path, recog_path, eval_output):
     list_of_videos = read_file(file_list).split("\n")[:-1]
 
     overlap = [0.1, 0.25, 0.5]
@@ -154,10 +110,10 @@ def main():
     true_idxs = []
     pred_idxs = []
     for vid in list_of_videos:
-        gt_file = ground_truth_path + vid
+        gt_file = os.path.join(ground_truth_path, vid)
         gt_content = read_file(gt_file).split("\n")[0:-1]
 
-        recog_file = recog_path + vid.split(".")[0] + ".txt"
+        recog_file = os.path.join(recog_path, vid)
         recog_content = read_file(recog_file).split("\n")[1].split()
 
         for i in range(len(gt_content)):
@@ -200,7 +156,7 @@ def main():
     #import pdb; pdb.set_trace()
     cm = confusion_matrix(
         true_idxs, pred_idxs,
-        labels=list(actions_dict.keys()), normalize="true"
+        normalize="true"
     )
 
     fig, ax = plt.subplots(figsize=(100, 100))
@@ -217,6 +173,3 @@ def main():
     print(f"cm recall: {np.mean(recall)}")
     precision = np.diag(cm) / np.sum(cm, axis=0)  # columns
     print(f"cm precision: {np.mean(precision)}")
-
-if __name__ == "__main__":
-    main()

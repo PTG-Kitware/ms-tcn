@@ -26,7 +26,7 @@ Run `python main.py --action=predict --dataset=DS --split=SP`.
 
 ### Evaluation:
 
-Run `python eval.py --dataset=DS --split=SP`. 
+Run `python main.py --action=eval --split=SP`
 
 ### Citation:
 
