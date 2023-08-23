@@ -105,7 +105,7 @@ class Trainer:
         self.mse = nn.MSELoss(reduction="none")
         self.num_classes = num_classes
 
-    def train(self, save_dir, batch_gen, num_epochs, batch_size, learning_rate, device):
+    def train(self, save_dir, batch_gen, num_epochs, batch_size, learning_rate, device, smoothing_loss):
         self.model.train()
         self.model.to(device)
         optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
@@ -129,7 +129,7 @@ class Trainer:
                         p.transpose(2, 1).contiguous().view(-1, self.num_classes),
                         batch_target.view(-1),
                     )
-                    loss += 0.015 * torch.mean(
+                    loss += smoothing_loss * torch.mean(
                         torch.clamp(
                             self.mse(
                                 F.log_softmax(p[:, :, 1:], dim=1),

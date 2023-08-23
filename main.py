@@ -31,6 +31,7 @@ features_dim = 42  # 2048
 bz = 1
 lr = 0.0005
 num_epochs = 200
+smoothing_loss = 0.015
 
 # use the full temporal resolution @ 15fps
 sample_rate = 1
@@ -48,7 +49,7 @@ data_root = "/data/hannah.defazio/ptg_nas/data_copy/"
 exp_data = f"{data_root}/TCN_data/{exp_name}"
 
 vid_list_file = f"{exp_data}/splits/train_activity.split{args.split}.bundle"
-vid_list_file_tst = f"{exp_data}/splits/val.split{args.split}.bundle"
+vid_list_file_tst = f"{exp_data}/splits/test.split{args.split}.bundle"
 features_path = f"{exp_data}/features/"
 gt_path = f"{exp_data}/groundTruth/"
 mapping_file = f"{exp_data}/mapping.txt"
@@ -56,7 +57,7 @@ mapping_file = f"{exp_data}/mapping.txt"
 # Outputs
 output_dir = f"/data/ptg/cooking/training/activity_classifier/TCN"
 
-save_dir = f"{output_dir}/{exp_name}_e200"
+save_dir = f"{output_dir}/{exp_name}_temp"
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
 
@@ -93,6 +94,7 @@ if args.action == "train":
         batch_size=bz,
         learning_rate=lr,
         device=device,
+        smoothing_loss=smoothing_loss
     )
 
 if args.action == "predict":
