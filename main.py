@@ -1,11 +1,14 @@
 #!/usr/bin/python2.7
 
 import torch
-from model import Trainer
-from batch_gen import BatchGenerator
 import os
 import argparse
 import random
+
+from eval import eval
+from model import Trainer
+from batch_gen import BatchGenerator
+
 
 #####################
 # Arguments
@@ -57,7 +60,7 @@ mapping_file = f"{exp_data}/mapping.txt"
 # Outputs
 output_dir = f"/data/ptg/cooking/training/activity_classifier/TCN"
 
-save_dir = f"{output_dir}/{exp_name}_temp"
+save_dir = f"{output_dir}/{exp_name}_focal_loss_smoothing_loss_015"
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
 
@@ -69,6 +72,13 @@ results_dir = f"{save_dir}/results/split_{args.split}"
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
 
+eval_output = f"{results_dir}/eval"
+if not os.path.exists(eval_output):
+    os.makedirs(eval_output)
+
+#####################
+# Labels
+#####################
 file_ptr = open(mapping_file, "r")
 actions = file_ptr.read().split("\n")[:-1]
 file_ptr.close()
@@ -108,3 +118,9 @@ if args.action == "predict":
         device,
         sample_rate,
     )
+
+#####################
+# Eval
+#####################
+if args.action == "eval":
+    eval(vid_list_file_tst, gt_path, results_dir, eval_output)
