@@ -97,7 +97,16 @@ def f_score(recognized, ground_truth, overlap, bg_class=["background"]):
     fn = len(y_label) - sum(hits)
     return float(tp), float(fp), float(fn)
 
-def eval(file_list, ground_truth_path, recog_path, eval_output):
+def eval(file_list: str, ground_truth_path: str,
+        recog_path: str, eval_output: str):
+    """Run evaluation
+
+    :param file_list: Path to the test bundle file
+    :param ground_truth_path: Path to the ``groundTruth`` folder
+    :param recog_path: Path to the predicition results
+        (obtained by running with ``action=predict``)
+    :param eval_output: Path to save the metrics and figures to
+    """
     list_of_videos = read_file(file_list).split("\n")[:-1]
 
     overlap = [0.1, 0.25, 0.5]
@@ -153,7 +162,6 @@ def eval(file_list, ground_truth_path, recog_path, eval_output):
             f.write(f"{f1_str}\n")
     
     # Create confusion matrix
-    #import pdb; pdb.set_trace()
     cm = confusion_matrix(
         true_idxs, pred_idxs,
         normalize="true"
