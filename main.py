@@ -30,7 +30,7 @@ args = parser.parse_args()
 num_stages = 4
 num_layers = 10
 num_f_maps = 64
-features_dim = 42  # 2048
+features_dim = 204  # 2048
 bz = 1
 lr = 0.0005
 num_epochs = 200
@@ -47,8 +47,8 @@ sample_rate = 1
 # Filepaths
 #####################
 # Inputs
-exp_name = "coffee_base"
-data_root = "/data/hannah.defazio/ptg_nas/data_copy/"
+exp_name = "coffee_conf_10_hands_dist"
+data_root = "/data/users/hannah.defazio/ptg_nas/data_copy/"
 exp_data = f"{data_root}/TCN_data/{exp_name}"
 
 vid_list_file = f"{exp_data}/splits/train_activity.split{args.split}.bundle"
@@ -58,9 +58,9 @@ gt_path = f"{exp_data}/groundTruth/"
 mapping_file = f"{exp_data}/mapping.txt"
 
 # Outputs
-output_dir = f"/data/ptg/cooking/training/activity_classifier/TCN"
+output_dir = f"/data/PTG/cooking/training/activity_classifier/TCN"
 
-save_dir = f"{output_dir}/{exp_name}_focal_loss_smoothing_loss_015"
+save_dir = f"{output_dir}/{exp_name}_gamma5"
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
 
