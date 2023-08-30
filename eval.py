@@ -181,3 +181,5 @@ def eval(file_list: str, ground_truth_path: str,
     print(f"cm recall: {np.mean(recall)}")
     precision = np.diag(cm) / np.sum(cm, axis=0)  # columns
     print(f"cm precision: {np.mean(precision)}")
+
+    print(f"Saved eval results to: {eval_output}")
