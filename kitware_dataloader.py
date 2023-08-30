@@ -26,12 +26,12 @@ activity_config_path = f"{ptg_root}/config/activity_labels"
 recipe = "coffee"
 activity_config_fn = f"{activity_config_path}/recipe_{recipe}.yaml"
 
-data_dir = "/data/hannah.defazio/ptg_nas/data_copy/"
+data_dir = "/data/users/hannah.defazio/ptg_nas/data_copy/"
 extracted_data_dir = f"{data_dir}/coffee_extracted"
 activity_gt_dir = f"{data_dir}/coffee_labels/Labels"
 
-exp_name = "coffee_base"
-obj_dets_dir = f"/data/ptg/cooking/annotations/coffee/results/{exp_name}"
+obj_exp_name = "coffee_base"
+obj_dets_dir = f"/data/PTG/cooking/annotations/coffee/results/{obj_exp_name}"
 
 training_split = {
     "train_activity": [
@@ -43,9 +43,12 @@ training_split = {
     "test": [f"all_activities_{x}" for x in [20, 33, 39, 50, 51, 52, 53, 54]],
 }  # Coffee specific
 
+feat_version = 2
+
 #####################
 # Output
 #####################
+exp_name = "coffee_conf_10_hands_dist"
 output_data_dir = f"{data_dir}/TCN_data/{exp_name}"
 if not os.path.exists(output_data_dir):
     os.makedirs(output_data_dir)
@@ -87,7 +90,7 @@ with open(f"{output_data_dir}/mapping.txt", "w") as mapping:
 # bundles
 #####################
 for split in training_split.keys():
-    kwcoco_file = f"{obj_dets_dir}/{exp_name}_results_{split}.mscoco.json"
+    kwcoco_file = f"{obj_dets_dir}/{obj_exp_name}_results_{split}_conf_0.1_plus_hl_hands.mscoco.json"
     dset = kwcoco.CocoDataset(kwcoco_file)
 
     num_classes = len(dset.cats)
@@ -124,9 +127,14 @@ for split in training_split.keys():
             label_to_ind,
             act_id_to_str,
             ann_by_image,
+            feat_version=feat_version
         )
         # num obj det classes x num frames
-        X = X.reshape(num_classes, -1)
+        if feat_version == 1:
+            X = X.reshape(num_classes, -1)
+        if feat_version == 2:
+            X = X.reshape(204, -1)
+
         np.save(f"{features_dir}/{video_name}.npy", X)
 
         # groundtruth
