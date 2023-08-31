@@ -1,5 +1,3 @@
-#!/usr/bin/python2.7
-
 import torch
 import os
 import argparse
@@ -52,7 +50,9 @@ data_root = "/data/users/hannah.defazio/ptg_nas/data_copy/"
 exp_data = f"{data_root}/TCN_data/{exp_name}"
 
 vid_list_file = f"{exp_data}/splits/train_activity.split{args.split}.bundle"
+vid_list_file_val = f"{exp_data}/splits/val.split{args.split}.bundle"
 vid_list_file_tst = f"{exp_data}/splits/test.split{args.split}.bundle"
+
 features_path = f"{exp_data}/features/"
 gt_path = f"{exp_data}/groundTruth/"
 mapping_file = f"{exp_data}/mapping.txt"
@@ -60,7 +60,7 @@ mapping_file = f"{exp_data}/mapping.txt"
 # Outputs
 output_dir = f"/data/PTG/cooking/training/activity_classifier/TCN"
 
-save_dir = f"{output_dir}/{exp_name}_gamma5"
+save_dir = f"{output_dir}/{exp_name}_val"
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
 
@@ -104,7 +104,8 @@ if args.action == "train":
         batch_size=bz,
         learning_rate=lr,
         device=device,
-        smoothing_loss=smoothing_loss
+        smoothing_loss=smoothing_loss,
+        vid_list_file_val=vid_list_file_val
     )
 
 if args.action == "predict":
@@ -123,4 +124,4 @@ if args.action == "predict":
 # Eval
 #####################
 if args.action == "eval":
-    eval(vid_list_file_tst, gt_path, results_dir, eval_output)
+    acc, recall, f1 = eval(vid_list_file_tst, gt_path, results_dir, eval_output)

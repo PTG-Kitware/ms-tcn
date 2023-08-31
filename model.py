@@ -1,5 +1,4 @@
-#!/usr/bin/python2.7
-
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,6 +6,8 @@ import ubelt as ub
 from torch import optim
 import copy
 import numpy as np
+
+from eval import eval
 
 
 class MultiStageModel(nn.Module):
@@ -105,7 +106,9 @@ class Trainer:
         self.mse = nn.MSELoss(reduction="none")
         self.num_classes = num_classes
 
-    def train(self, save_dir, batch_gen, num_epochs, batch_size, learning_rate, device, smoothing_loss):
+    def train(self, save_dir, batch_gen, num_epochs, 
+              batch_size, learning_rate, device, smoothing_loss,
+              vid_list_file_val):
         self.model.train()
         self.model.to(device)
         optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
@@ -154,19 +157,53 @@ class Trainer:
                 total += torch.sum(mask[:, 0, :]).item()
 
             batch_gen.reset()
+
+            
+            # Save
             torch.save(
                 self.model.state_dict(),
-                save_dir + "/epoch-" + str(epoch + 1) + ".model",
+                f"{save_dir}/epoch-{str(epoch + 1)}.model",
             )
             torch.save(
-                optimizer.state_dict(), save_dir + "/epoch-" + str(epoch + 1) + ".opt"
+                optimizer.state_dict(), f"{save_dir}/epoch-{str(epoch + 1)}.opt"
             )
+
+            # Validation
+            if epoch % 10 == 0:
+                val_results = f"{save_dir}/val"
+                if not os.path.exists(val_results):
+                    os.makedirs(val_results)
+                val_results_dir = f"{val_results}/epoch_{epoch+1}"
+                if not os.path.exists(val_results_dir):
+                    os.makedirs(val_results_dir)
+                val_eval_results_dir = f"{val_results_dir}/eval"
+                if not os.path.exists(val_eval_results_dir):
+                    os.makedirs(val_eval_results_dir)
+
+                self.predict(
+                    save_dir,
+                    val_results_dir,
+                    batch_gen.features_path,
+                    vid_list_file_val,
+                    epoch+1,
+                    batch_gen.actions_dict,
+                    device,
+                    batch_gen.sample_rate,
+                )
+
+                acc, recall, f1 = eval( vid_list_file_val,
+                                        batch_gen.gt_path,
+                                        val_results_dir,
+                                        val_eval_results_dir
+                                    )
+            # Print
             print(
-                "[epoch %d]: epoch loss = %f,   acc = %f"
+                "[epoch %d]: epoch loss = %f,   acc = %f,   val acc = %f"
                 % (
                     epoch + 1,
                     epoch_loss / len(batch_gen.list_of_examples),
                     float(correct) / total,
+                    acc
                 )
             )
 

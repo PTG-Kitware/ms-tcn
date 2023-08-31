@@ -1,4 +1,3 @@
-#!/usr/bin/python2.7
 # adapted from: https://github.com/colincsl/TemporalConvolutionalNetworks/blob/master/code/metrics.py
 import os
 import argparse
@@ -143,13 +142,15 @@ def eval(file_list: str, ground_truth_path: str,
 
     # Metrics
     with open(f"{eval_output}/metrics.txt", "w") as f:
-        acc = "Acc: %.4f" % (100 * float(correct) / total)
-        print(acc)
-        f.write(f"{acc}\n")
+        acc = float(correct) / total
+        acc_str = "Acc: %.4f" % (100 * acc)
+        print(acc_str)
+        f.write(f"{acc_str}\n")
 
-        edit = "Edit: %.4f" % ((1.0 * edit) / len(list_of_videos))
-        print(edit)
-        f.write(f"{edit}\n")
+        edit = (1.0 * edit) / len(list_of_videos)
+        edit_str = "Edit: %.4f" % (edit)
+        print(edit_str)
+        f.write(f"{edit_str}\n")
         for s in range(len(overlap)):
             precision = tp[s] / float(tp[s] + fp[s])
             recall = tp[s] / float(tp[s] + fn[s])
@@ -183,3 +184,5 @@ def eval(file_list: str, ground_truth_path: str,
     print(f"cm precision: {np.mean(precision)}")
 
     print(f"Saved eval results to: {eval_output}")
+
+    return acc, recall, f1
