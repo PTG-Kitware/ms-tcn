@@ -1,0 +1,10 @@
+kwcoco==0.6.2
+matplotlib==3.7.1
+numpy==1.24.2
+numpy==1.23.5
+PyYAML==6.0
+PyYAML==6.0.1
+scikit_learn==1.2.1
+seaborn==0.12.2
+torch==1.13.1
+ubelt==1.2.4
