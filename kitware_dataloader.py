@@ -129,10 +129,12 @@ for split in training_split.keys():
             ann_by_image,
             feat_version=feat_version
         )
-        # num obj det classes x num frames
+        
         if feat_version == 1:
+            # num obj det classes x num frames
             X = X.reshape(num_classes, -1)
         if feat_version == 2:
+            # 204 x num frames
             X = X.reshape(204, -1)
 
         np.save(f"{features_dir}/{video_name}.npy", X)
