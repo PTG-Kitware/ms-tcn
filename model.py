@@ -127,7 +127,7 @@ class Trainer:
                 predictions = self.model(batch_input, mask)
 
                 loss = 0
-                for p in predictions:
+                with p as predictions[-1]:
                     loss += self.loss_f(
                         p.transpose(2, 1).contiguous().view(-1, self.num_classes),
                         batch_target.view(-1),
