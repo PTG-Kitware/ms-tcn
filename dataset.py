@@ -4,7 +4,7 @@ import random
 
 
 class PTG_Dataset(torch.utils.data.Dataset):
-    def __init__(self, vid_list_file, num_classes, actions_dict, gt_path, features_path, sample_rate, window_size,
+    def __init__(self, videos, num_classes, actions_dict, gt_path, features_path, sample_rate, window_size,
                  transform=None, target_transform=None):
         self.num_classes = num_classes
         self.actions_dict = actions_dict
@@ -14,10 +14,6 @@ class PTG_Dataset(torch.utils.data.Dataset):
         self.window_size = window_size
         self.dataset_size = -1
 
-        # Load Vidoes
-        file_ptr = open(vid_list_file, "r")
-        videos = file_ptr.read().split("\n")[:-1]
-        file_ptr.close()
 
         input_frames_list = []
         target_frames_list = []
@@ -69,75 +65,75 @@ class PTG_Dataset(torch.utils.data.Dataset):
 
 
 
-import torch
-import os
-import argparse
-import random
+# import torch
+# import os
+# import argparse
+# import random
 
 
-#####################
-# Arguments
-#####################
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-seed = 1538574472
-random.seed(seed)
-torch.manual_seed(seed)
-torch.cuda.manual_seed_all(seed)
-torch.backends.cudnn.deterministic = True
+# #####################
+# # Arguments
+# #####################
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# seed = 1538574472
+# random.seed(seed)
+# torch.manual_seed(seed)
+# torch.cuda.manual_seed_all(seed)
+# torch.backends.cudnn.deterministic = True
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--action", default="train")
-# parser.add_argument('--dataset', default="gtea")
-parser.add_argument("--split", default="1")
-parser.add_argument("--batch_size", default="10")
-parser.add_argument("--num_workers", default="0")
-parser.add_argument("--window_size", default="30")
+# parser = argparse.ArgumentParser()
+# parser.add_argument("--action", default="train")
+# # parser.add_argument('--dataset', default="gtea")
+# parser.add_argument("--split", default="1")
+# parser.add_argument("--batch_size", default="10")
+# parser.add_argument("--num_workers", default="0")
+# parser.add_argument("--window_size", default="30")
 
-args = parser.parse_args()
+# args = parser.parse_args()
 
-# use the full temporal resolution @ 15fps
-sample_rate = 1
+# # use the full temporal resolution @ 15fps
+# sample_rate = 1
 
-#####################
-# Filepaths
-#####################
-# Inputs
-exp_name = "coffee_conf_10_hands_dist"
-data_root = "/data/users/hannah.defazio/ptg_nas/data_copy/"
-exp_data = f"{data_root}/TCN_data/{exp_name}"
+# #####################
+# # Filepaths
+# #####################
+# # Inputs
+# exp_name = "coffee_conf_10_hands_dist"
+# data_root = "/data/users/hannah.defazio/ptg_nas/data_copy/"
+# exp_data = f"{data_root}/TCN_data/{exp_name}"
 
-features_path = f"{exp_data}/features/"
-gt_path = f"{exp_data}/groundTruth/"
-mapping_file = f"{exp_data}/mapping.txt"
-
-
-#####################
-# Labels
-#####################
-file_ptr = open(mapping_file, "r")
-actions = file_ptr.read().split("\n")[:-1]
-file_ptr.close()
-actions_dict = dict()
-for a in actions:
-    actions_dict[a.split()[1]] = int(a.split()[0])
-
-num_classes = len(actions_dict)
-
-vid_list_file = f"{exp_data}/splits/train_activity.split{args.split}.bundle"
-vid_list_file_val = f"{exp_data}/splits/val.split{args.split}.bundle"
-vid_list_file_tst = f"{exp_data}/splits/test.split{args.split}.bundle"
+# features_path = f"{exp_data}/features/"
+# gt_path = f"{exp_data}/groundTruth/"
+# mapping_file = f"{exp_data}/mapping.txt"
 
 
-dataset = PTG_Dataset(
-    vid_list_file, num_classes, actions_dict, gt_path, features_path, sample_rate, int(args.window_size)
-)
+# #####################
+# # Labels
+# #####################
+# file_ptr = open(mapping_file, "r")
+# actions = file_ptr.read().split("\n")[:-1]
+# file_ptr.close()
+# actions_dict = dict()
+# for a in actions:
+#     actions_dict[a.split()[1]] = int(a.split()[0])
 
-dataset[len(dataset)-1]
-sampler = torch.utils.data.WeightedRandomSampler(dataset.weights, len(dataset), replacement=True, generator=None)
-dataloader = torch.utils.data.DataLoader(dataset, batch_size=int(args.batch_size), sampler=sampler,
-           num_workers=int(args.num_workers), pin_memory=True, drop_last=True)
+# num_classes = len(actions_dict)
 
-for item in dataloader:
-    break
+# vid_list_file = f"{exp_data}/splits/train_activity.split{args.split}.bundle"
+# vid_list_file_val = f"{exp_data}/splits/val.split{args.split}.bundle"
+# vid_list_file_tst = f"{exp_data}/splits/test.split{args.split}.bundle"
 
-pass
+
+# dataset = PTG_Dataset(
+#     vid_list_file, num_classes, actions_dict, gt_path, features_path, sample_rate, int(args.window_size)
+# )
+
+# dataset[len(dataset)-1]
+# sampler = torch.utils.data.WeightedRandomSampler(dataset.weights, len(dataset), replacement=True, generator=None)
+# dataloader = torch.utils.data.DataLoader(dataset, batch_size=int(args.batch_size), sampler=sampler,
+#            num_workers=int(args.num_workers), pin_memory=True, drop_last=True)
+
+# for item in dataloader:
+#     break
+
+# pass

@@ -6,6 +6,7 @@ import ubelt as ub
 from torch import optim
 import copy
 import numpy as np
+from dataset import PTG_Dataset
 
 from eval import eval
 
@@ -258,7 +259,9 @@ class Trainer:
 
 
 class Trainer_pytorch:
-    def __init__(self, num_blocks, num_layers, num_f_maps, dim, num_classes, actions_dict):
+    def __init__(self, num_blocks, num_layers, num_f_maps, dim, num_classes,
+                  actions_dict, gt_path, features_path, sample_rate, window_size,
+                  val_videos, val_batch_size):
         self.model = MultiStageModel(
             num_blocks, num_layers, num_f_maps, dim, num_classes
         )
@@ -266,8 +269,14 @@ class Trainer_pytorch:
         self.mse = nn.MSELoss(reduction="none")
         self.num_classes = num_classes
         self.actions_dict = actions_dict
+        self.gt_path = gt_path
+        self.features_path = features_path
+        self.sample_rate = sample_rate
+        self.window_size = window_size
+        self.val_videos = val_videos
+        self.val_batch_size = val_batch_size
 
-    def train(self, save_dir, train_dataloader, predict_dataloader, num_epochs, 
+    def train(self, save_dir, train_dataloader, num_epochs, 
               learning_rate, device, smoothing_loss,
               vid_list_file_val):
         self.model.train()
@@ -278,7 +287,7 @@ class Trainer_pytorch:
             epoch_loss = 0
             correct = 0
             total = 0
-            for batch_input, batch_target, mask in train_dataloader:
+            for batch_input, batch_target, mask in ub.ProgIter(train_dataloader):
                 batch_input = batch_input.transpose(2, 1)
                 batch_input, batch_target, mask = (
                     batch_input.to(device),
@@ -318,7 +327,6 @@ class Trainer_pytorch:
                     .item()
                 )
                 total += torch.sum(mask[:, 0, :]).item()
-                break
             
             # Save
             model_path = f"{save_dir}/epoch-{str(epoch + 1)}.model"
@@ -343,14 +351,13 @@ class Trainer_pytorch:
                     os.makedirs(val_eval_results_dir)
 
                 self.predict(
-                    predict_dataloader,
                     val_results_dir,
                     model_path,
                     device,
                 )
 
                 acc, recall, f1 = eval( vid_list_file_val,
-                                        batch_gen.gt_path,
+                                        self.gt_path,
                                         val_results_dir,
                                         val_eval_results_dir
                                     )
@@ -374,28 +381,50 @@ class Trainer_pytorch:
     ):
         action_ids = list(self.actions_dict.values())
         action_strs = list(self.actions_dict.keys())
-
+        # Load Vidoes
         self.model.eval()
-
-        with torch.no_grad():
-            self.model.to(device)
-            self.model.load_state_dict(
-                torch.load(model_path)
-            )
-
-            all_predictions = []
-            for batch_input, batch_target, mask in predict_dataloader:
-                batch_input = batch_input.transpose(2, 1)
-                batch_input, batch_target, mask = (
-                    batch_input.to(device),
-                    batch_target.to(device),
-                    mask.to(device),
+        for vid in self.val_videos:
+            dataset = PTG_Dataset(
+                [vid], self.num_classes, self.actions_dict, self.gt_path, 
+                self.features_path, self.sample_rate, self.window_size
                 )
-                predictions = self.model(batch_input, mask)
-                _, predicted = torch.max(predictions[-1].data, 1)
-                predicted = predicted.squeeze()
-                    
+            predict_sampler = torch.utils.data.SequentialSampler(dataset)
+            predict_dataloader = torch.utils.data.DataLoader(dataset, batch_size=self.val_batch_size, sampler=predict_sampler,
+                num_workers=0, pin_memory=True, drop_last=False)
 
+            with torch.no_grad():
+                self.model.to(device)
+                self.model.load_state_dict(
+                    torch.load(model_path)
+                )
+                i = 0
+                all_predictions = []
+                for batch_input, batch_target, mask in ub.ProgIter(predict_dataloader, desc="Predicting videos"):
+                    batch_input = batch_input.transpose(2, 1)
+                    batch_input, batch_target, mask = (
+                        batch_input.to(device),
+                        batch_target.to(device),
+                        mask.to(device),
+                    )
+                    predictions = self.model(batch_input, mask)
+                    _, predicted = torch.max(predictions[-1,:,:,-1].data, 1)
+                    all_predictions.append(predicted.numpy(force=True))
+                    i+= 1
+
+                prediction_list = np.concatenate(all_predictions)
+            
+                recognition = []
+                recognition = np.concatenate((recognition, action_strs[0] * self.window_size))
+                for i, item in enumerate(prediction_list):
+                    x = [action_strs[action_ids.index(item)]]
+                    recognition = np.concatenate((recognition, x * self.sample_rate))
+                f_name = vid.split("/")[-1].split(".")[0]
+                f_ptr = open(results_dir + "/" + f_name + ".txt", "w")
+                f_ptr.write("### Frame level recognition: ###\n")
+                f_ptr.write(" ".join(recognition))
+                f_ptr.close()
+
+        pass
 
             # for vid in ub.ProgIter(list_of_vids, desc="Predicting videos"):
             #     features = np.load(features_path + vid.split(".")[0] + ".npy")

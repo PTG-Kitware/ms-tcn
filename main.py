@@ -22,8 +22,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--action", default="train")
 # parser.add_argument('--dataset', default="gtea")
 parser.add_argument("--split", default="1")
-parser.add_argument("--batch_size", default="10")
-parser.add_argument("--num_workers", default="0")
+parser.add_argument("--batch_size", default="1000")
+parser.add_argument("--num_workers", default="8")
 parser.add_argument("--window_size", default="30")
 
 args = parser.parse_args()
@@ -35,6 +35,7 @@ features_dim = 204  # 2048
 lr = 0.0005
 num_epochs = 200
 smoothing_loss = 0.015
+val_batch_size = 1000
 
 # use the full temporal resolution @ 15fps
 sample_rate = 1
@@ -91,30 +92,36 @@ for a in actions:
 num_classes = len(actions_dict)
 
 
+# Load Vidoes
+file_ptr = open(vid_list_file, "r")
+videos = file_ptr.read().split("\n")[:-1]
+file_ptr.close()
 
+# Load Vidoes
+file_ptr = open(vid_list_file_val, "r")
+val_videos = file_ptr.read().split("\n")[:-1]
+file_ptr.close()
 
 #####################
 # Train
 #####################
-trainer = Trainer_pytorch(num_stages, num_layers, num_f_maps, features_dim, num_classes,actions_dict)
+trainer = Trainer_pytorch(num_stages, num_layers, num_f_maps, features_dim, 
+                          num_classes,actions_dict, gt_path, features_path, 
+                          sample_rate, int(args.window_size), val_videos, val_batch_size)
 if args.action == "train":
     dataset = PTG_Dataset(
-        vid_list_file, num_classes, actions_dict, gt_path, features_path, sample_rate, int(args.window_size)
+        videos, num_classes, actions_dict, gt_path, features_path, sample_rate, 
+        int(args.window_size)
     )
 
     dataset[len(dataset)-1]
-    train_sampler = torch.utils.data.WeightedRandomSampler(dataset.weights, len(dataset), replacement=True, generator=None)
+    train_sampler = torch.utils.data.WeightedRandomSampler(dataset.weights, 5000, replacement=True, generator=None)
     train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=int(args.batch_size), sampler=train_sampler,
             num_workers=int(args.num_workers), pin_memory=True, drop_last=True)
     
-
-    predict_sampler = torch.utils.data.SequentialSampler(dataset)
-    predict_dataloader = torch.utils.data.DataLoader(dataset, batch_size=int(args.batch_size), sampler=predict_sampler,
-        num_workers=0, pin_memory=True, drop_last=False)
     trainer.train(
         model_dir,
         train_dataloader,
-        predict_dataloader,
         num_epochs=num_epochs,
         learning_rate=lr,
         device=device,
