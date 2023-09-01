@@ -39,3 +39,12 @@ If you use the code, please cite
     S. Li, Y. Abu Farha, Y. Liu, MM. Cheng,  and J. Gall.
     MS-TCN++: Multi-Stage Temporal Convolutional Network for Action Segmentation.
     In IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI), 2020
+
+
+
+Real install instructions
+
+```
+conda create --name ptg python=3.10 scikit-learn jupyter seaborn pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
+pip install ubelt
+```

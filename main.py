@@ -4,8 +4,8 @@ import argparse
 import random
 
 from eval import eval
-from model import Trainer
-from batch_gen import BatchGenerator
+from model import Trainer_pytorch
+from dataset import PTG_Dataset
 
 
 #####################
@@ -22,6 +22,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--action", default="train")
 # parser.add_argument('--dataset', default="gtea")
 parser.add_argument("--split", default="1")
+parser.add_argument("--batch_size", default="10")
+parser.add_argument("--num_workers", default="0")
+parser.add_argument("--window_size", default="30")
 
 args = parser.parse_args()
 
@@ -29,7 +32,6 @@ num_stages = 4
 num_layers = 10
 num_f_maps = 64
 features_dim = 204  # 2048
-bz = 1
 lr = 0.0005
 num_epochs = 200
 smoothing_loss = 0.015
@@ -88,20 +90,26 @@ for a in actions:
 
 num_classes = len(actions_dict)
 
+
+
+
 #####################
 # Train
 #####################
-trainer = Trainer(num_stages, num_layers, num_f_maps, features_dim, num_classes)
+trainer = Trainer_pytorch(num_stages, num_layers, num_f_maps, features_dim, num_classes)
 if args.action == "train":
-    batch_gen = BatchGenerator(
-        num_classes, actions_dict, gt_path, features_path, sample_rate
+    dataset = PTG_Dataset(
+        vid_list_file, num_classes, actions_dict, gt_path, features_path, sample_rate, int(args.window_size)
     )
-    batch_gen.read_data(vid_list_file)
+
+    dataset[len(dataset)-1]
+    sampler = torch.utils.data.WeightedRandomSampler(dataset.weights, len(dataset), replacement=True, generator=None)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=int(args.batch_size), sampler=sampler,
+            num_workers=int(args.num_workers), pin_memory=True, drop_last=True)
     trainer.train(
         model_dir,
-        batch_gen,
+        dataloader,
         num_epochs=num_epochs,
-        batch_size=bz,
         learning_rate=lr,
         device=device,
         smoothing_loss=smoothing_loss,
@@ -109,6 +117,7 @@ if args.action == "train":
     )
 
 if args.action == "predict":
+    raise NotImplementedError
     trainer.predict(
         model_dir,
         results_dir,

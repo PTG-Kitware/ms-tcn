@@ -255,3 +255,162 @@ class Trainer:
                 f_ptr.write(" ".join(recognition))
                 f_ptr.close()
         print(f"Saved predictions to: {results_dir}")
+
+
+class Trainer_pytorch:
+    def __init__(self, num_blocks, num_layers, num_f_maps, dim, num_classes):
+        self.model = MultiStageModel(
+            num_blocks, num_layers, num_f_maps, dim, num_classes
+        )
+        self.loss_f = FocalLoss() #nn.CrossEntropyLoss(ignore_index=-100)
+        self.mse = nn.MSELoss(reduction="none")
+        self.num_classes = num_classes
+
+    def train(self, save_dir, dataloader, num_epochs, 
+              learning_rate, device, smoothing_loss,
+              vid_list_file_val):
+        self.model.train()
+        self.model.to(device)
+        optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
+
+        for epoch in range(num_epochs):
+            epoch_loss = 0
+            correct = 0
+            total = 0
+            for batch_input, batch_target, mask in dataloader:
+                batch_input = batch_input.transpose(2, 1)
+                batch_input, batch_target, mask = (
+                    batch_input.to(device),
+                    batch_target.to(device),
+                    mask.to(device),
+                )
+                optimizer.zero_grad()
+                predictions = self.model(batch_input, mask)
+
+                loss = 0
+
+                for p in predictions:
+                    loss += self.loss_f(
+                        p[:,:,-1],
+                        batch_target[:,-1]
+                    )
+                    loss += smoothing_loss * torch.mean(
+                        torch.clamp(
+                            self.mse(
+                                F.log_softmax(p[:, :, 1:], dim=1),
+                                F.log_softmax(p.detach()[:, :, :-1], dim=1),
+                            ),
+                            min=0,
+                            max=16,
+                        )
+                        * mask[:, :, 1:]
+                    )
+
+                epoch_loss += loss.item()
+                loss.backward()
+                optimizer.step()
+
+                _, predicted = torch.max(predictions[-1].data, 1)
+                correct += (
+                    ((predicted == batch_target).float() * mask[:, 0, :].squeeze(1))
+                    .sum()
+                    .item()
+                )
+                total += torch.sum(mask[:, 0, :]).item()
+
+            
+            # Save
+            torch.save(
+                self.model.state_dict(),
+                f"{save_dir}/epoch-{str(epoch + 1)}.model",
+            )
+            torch.save(
+                optimizer.state_dict(), f"{save_dir}/epoch-{str(epoch + 1)}.opt"
+            )
+
+            # Validation
+            if epoch % 10 == 0:
+                val_results = f"{save_dir}/val"
+                if not os.path.exists(val_results):
+                    os.makedirs(val_results)
+                val_results_dir = f"{val_results}/epoch_{epoch+1}"
+                if not os.path.exists(val_results_dir):
+                    os.makedirs(val_results_dir)
+                val_eval_results_dir = f"{val_results_dir}/eval"
+                if not os.path.exists(val_eval_results_dir):
+                    os.makedirs(val_eval_results_dir)
+
+                self.predict(
+                    save_dir,
+                    val_results_dir,
+                    batch_gen.features_path,
+                    vid_list_file_val,
+                    epoch+1,
+                    batch_gen.actions_dict,
+                    device,
+                    batch_gen.sample_rate,
+                )
+
+                acc, recall, f1 = eval( vid_list_file_val,
+                                        batch_gen.gt_path,
+                                        val_results_dir,
+                                        val_eval_results_dir
+                                    )
+            # Print
+            print(
+                "[epoch %d]: epoch loss = %f,   acc = %f,   val acc = %f"
+                % (
+                    epoch + 1,
+                    epoch_loss,
+                    float(correct) / total,
+                    acc
+                )
+            )
+
+    def predict(
+        self,
+        model_dir,
+        results_dir,
+        features_path,
+        vid_list_file,
+        epoch,
+        actions_dict,
+        device,
+        sample_rate,
+    ):
+        action_ids = list(actions_dict.values())
+        action_strs = list(actions_dict.keys())
+
+        self.model.eval()
+
+        with torch.no_grad():
+            self.model.to(device)
+            self.model.load_state_dict(
+                torch.load(model_dir + "/epoch-" + str(epoch) + ".model")
+            )
+            file_ptr = open(vid_list_file, "r")
+            list_of_vids = file_ptr.read().split("\n")[:-1]
+            file_ptr.close()
+            for vid in ub.ProgIter(list_of_vids, desc="Predicting videos"):
+                features = np.load(features_path + vid.split(".")[0] + ".npy")
+                features = features[:, ::sample_rate]
+                input_x = torch.tensor(features, dtype=torch.float)
+                input_x.unsqueeze_(0)
+                input_x = input_x.to(device)
+
+                predictions = self.model(
+                    input_x, torch.ones(input_x.size(), device=device)
+                )
+                _, predicted = torch.max(predictions[-1].data, 1)
+                predicted = predicted.squeeze()
+                recognition = []
+
+                for i in range(len(predicted)):
+                    x = [action_strs[action_ids.index(predicted[i].item())]]
+                    recognition = np.concatenate((recognition, x * sample_rate))
+                f_name = vid.split("/")[-1].split(".")[0]
+                f_ptr = open(results_dir + "/" + f_name + ".txt", "w")
+                f_ptr.write("### Frame level recognition: ###\n")
+                f_ptr.write(" ".join(recognition))
+                f_ptr.close()
+        print(f"Saved predictions to: {results_dir}")
