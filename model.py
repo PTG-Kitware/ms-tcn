@@ -274,8 +274,8 @@ class TemporalWindowTrainer:
         loss = 0
 
         loss += self.loss_f(
-            p.transpose(2, 1).contiguous().view(-1, self.num_classes),
-            batch_target.view(-1)
+            p[:, :, -1],
+            batch_target[:, -1]
         )
 
         loss += self.smoothing_loss * torch.mean(
@@ -309,7 +309,7 @@ class TemporalWindowTrainer:
                 batch_input, batch_target, mask = batch_data
                 batch_input = batch_input.transpose(2, 1)
                 batch_input, batch_target, mask = (
-                    batch_input.to(device, dtype=torch.float),
+                    batch_input.to(device),
                     batch_target.to(device),
                     mask.to(device)
                 )
@@ -359,5 +359,35 @@ class TemporalWindowTrainer:
                 f"val loss: {avg_val_loss}"
             )
 
+    def predict(
+        self,
+        predict_dataloader,
+        results_dir,
+        model_path,
+        device,
+    ):
+        action_ids = list(self.actions_dict.values())
+        action_strs = list(self.actions_dict.keys())
 
+        self.model.eval()
+
+        with torch.no_grad():
+            self.model.to(device)
+            self.model.load_state_dict(
+                torch.load(model_path)
+            )
+
+            all_predictions = []
+            for batch_input, batch_target, mask in predict_dataloader:
+                batch_input = batch_input.transpose(2, 1)
+                batch_input, batch_target, mask = (
+                    batch_input.to(device),
+                    batch_target.to(device),
+                    mask.to(device),
+                )
+                predictions = self.model(batch_input, mask)
+                _, predicted = torch.max(predictions[-1].data, 1)
+                predicted = predicted.squeeze()
+
+        print(f"Saved predictions to {results_dir}")
 
