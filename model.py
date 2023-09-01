@@ -258,15 +258,16 @@ class Trainer:
 
 
 class Trainer_pytorch:
-    def __init__(self, num_blocks, num_layers, num_f_maps, dim, num_classes):
+    def __init__(self, num_blocks, num_layers, num_f_maps, dim, num_classes, actions_dict):
         self.model = MultiStageModel(
             num_blocks, num_layers, num_f_maps, dim, num_classes
         )
         self.loss_f = FocalLoss() #nn.CrossEntropyLoss(ignore_index=-100)
         self.mse = nn.MSELoss(reduction="none")
         self.num_classes = num_classes
+        self.actions_dict = actions_dict
 
-    def train(self, save_dir, dataloader, num_epochs, 
+    def train(self, save_dir, train_dataloader, predict_dataloader, num_epochs, 
               learning_rate, device, smoothing_loss,
               vid_list_file_val):
         self.model.train()
@@ -277,7 +278,7 @@ class Trainer_pytorch:
             epoch_loss = 0
             correct = 0
             total = 0
-            for batch_input, batch_target, mask in dataloader:
+            for batch_input, batch_target, mask in train_dataloader:
                 batch_input = batch_input.transpose(2, 1)
                 batch_input, batch_target, mask = (
                     batch_input.to(device),
@@ -317,12 +318,13 @@ class Trainer_pytorch:
                     .item()
                 )
                 total += torch.sum(mask[:, 0, :]).item()
-
+                break
             
             # Save
+            model_path = f"{save_dir}/epoch-{str(epoch + 1)}.model"
             torch.save(
                 self.model.state_dict(),
-                f"{save_dir}/epoch-{str(epoch + 1)}.model",
+                model_path,
             )
             torch.save(
                 optimizer.state_dict(), f"{save_dir}/epoch-{str(epoch + 1)}.opt"
@@ -341,14 +343,10 @@ class Trainer_pytorch:
                     os.makedirs(val_eval_results_dir)
 
                 self.predict(
-                    save_dir,
+                    predict_dataloader,
                     val_results_dir,
-                    batch_gen.features_path,
-                    vid_list_file_val,
-                    epoch+1,
-                    batch_gen.actions_dict,
+                    model_path,
                     device,
-                    batch_gen.sample_rate,
                 )
 
                 acc, recall, f1 = eval( vid_list_file_val,
@@ -369,48 +367,56 @@ class Trainer_pytorch:
 
     def predict(
         self,
-        model_dir,
+        predict_dataloader,
         results_dir,
-        features_path,
-        vid_list_file,
-        epoch,
-        actions_dict,
+        model_path,
         device,
-        sample_rate,
     ):
-        action_ids = list(actions_dict.values())
-        action_strs = list(actions_dict.keys())
+        action_ids = list(self.actions_dict.values())
+        action_strs = list(self.actions_dict.keys())
 
         self.model.eval()
 
         with torch.no_grad():
             self.model.to(device)
             self.model.load_state_dict(
-                torch.load(model_dir + "/epoch-" + str(epoch) + ".model")
+                torch.load(model_path)
             )
-            file_ptr = open(vid_list_file, "r")
-            list_of_vids = file_ptr.read().split("\n")[:-1]
-            file_ptr.close()
-            for vid in ub.ProgIter(list_of_vids, desc="Predicting videos"):
-                features = np.load(features_path + vid.split(".")[0] + ".npy")
-                features = features[:, ::sample_rate]
-                input_x = torch.tensor(features, dtype=torch.float)
-                input_x.unsqueeze_(0)
-                input_x = input_x.to(device)
 
-                predictions = self.model(
-                    input_x, torch.ones(input_x.size(), device=device)
+            all_predictions = []
+            for batch_input, batch_target, mask in predict_dataloader:
+                batch_input = batch_input.transpose(2, 1)
+                batch_input, batch_target, mask = (
+                    batch_input.to(device),
+                    batch_target.to(device),
+                    mask.to(device),
                 )
+                predictions = self.model(batch_input, mask)
                 _, predicted = torch.max(predictions[-1].data, 1)
                 predicted = predicted.squeeze()
-                recognition = []
+                    
 
-                for i in range(len(predicted)):
-                    x = [action_strs[action_ids.index(predicted[i].item())]]
-                    recognition = np.concatenate((recognition, x * sample_rate))
-                f_name = vid.split("/")[-1].split(".")[0]
-                f_ptr = open(results_dir + "/" + f_name + ".txt", "w")
-                f_ptr.write("### Frame level recognition: ###\n")
-                f_ptr.write(" ".join(recognition))
-                f_ptr.close()
+
+            # for vid in ub.ProgIter(list_of_vids, desc="Predicting videos"):
+            #     features = np.load(features_path + vid.split(".")[0] + ".npy")
+            #     features = features[:, ::sample_rate]
+            #     input_x = torch.tensor(features, dtype=torch.float)
+            #     input_x.unsqueeze_(0)
+            #     input_x = input_x.to(device)
+
+            #     predictions = self.model(
+            #         input_x, torch.ones(input_x.size(), device=device)
+            #     )
+            #     _, predicted = torch.max(predictions[-1].data, 1)
+            #     predicted = predicted.squeeze()
+            #     recognition = []
+
+                # for i in range(len(predicted)):
+                #     x = [action_strs[action_ids.index(predicted[i].item())]]
+                #     recognition = np.concatenate((recognition, x * sample_rate))
+                # f_name = vid.split("/")[-1].split(".")[0]
+                # f_ptr = open(results_dir + "/" + f_name + ".txt", "w")
+                # f_ptr.write("### Frame level recognition: ###\n")
+                # f_ptr.write(" ".join(recognition))
+                # f_ptr.close()
         print(f"Saved predictions to: {results_dir}")

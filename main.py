@@ -62,7 +62,7 @@ mapping_file = f"{exp_data}/mapping.txt"
 # Outputs
 output_dir = f"/data/PTG/cooking/training/activity_classifier/TCN"
 
-save_dir = f"{output_dir}/{exp_name}_val"
+save_dir = f"{output_dir}/{exp_name}_val_debug"
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
 
@@ -96,24 +96,30 @@ num_classes = len(actions_dict)
 #####################
 # Train
 #####################
-trainer = Trainer_pytorch(num_stages, num_layers, num_f_maps, features_dim, num_classes)
+trainer = Trainer_pytorch(num_stages, num_layers, num_f_maps, features_dim, num_classes,actions_dict)
 if args.action == "train":
     dataset = PTG_Dataset(
         vid_list_file, num_classes, actions_dict, gt_path, features_path, sample_rate, int(args.window_size)
     )
 
     dataset[len(dataset)-1]
-    sampler = torch.utils.data.WeightedRandomSampler(dataset.weights, len(dataset), replacement=True, generator=None)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=int(args.batch_size), sampler=sampler,
+    train_sampler = torch.utils.data.WeightedRandomSampler(dataset.weights, len(dataset), replacement=True, generator=None)
+    train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=int(args.batch_size), sampler=train_sampler,
             num_workers=int(args.num_workers), pin_memory=True, drop_last=True)
+    
+
+    predict_sampler = torch.utils.data.SequentialSampler(dataset)
+    predict_dataloader = torch.utils.data.DataLoader(dataset, batch_size=int(args.batch_size), sampler=predict_sampler,
+        num_workers=0, pin_memory=True, drop_last=False)
     trainer.train(
         model_dir,
-        dataloader,
+        train_dataloader,
+        predict_dataloader,
         num_epochs=num_epochs,
         learning_rate=lr,
         device=device,
         smoothing_loss=smoothing_loss,
-        vid_list_file_val=vid_list_file_val
+        vid_list_file_val=vid_list_file_val,
     )
 
 if args.action == "predict":
