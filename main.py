@@ -23,7 +23,7 @@ parser.add_argument("--action", default="train")
 # parser.add_argument('--dataset', default="gtea")
 parser.add_argument("--split", default="1")
 parser.add_argument("--batch_size", default="1000")
-parser.add_argument("--num_workers", default="8")
+parser.add_argument("--num_workers", default="20")
 parser.add_argument("--window_size", default="30")
 
 args = parser.parse_args()
@@ -113,11 +113,16 @@ if args.action == "train":
         videos, num_classes, actions_dict, gt_path, features_path, sample_rate, 
         int(args.window_size)
     )
-
-    dataset[len(dataset)-1]
-    train_sampler = torch.utils.data.WeightedRandomSampler(dataset.weights, 5000, replacement=True, generator=None)
-    train_dataloader = torch.utils.data.DataLoader(dataset, batch_size=int(args.batch_size), sampler=train_sampler,
-            num_workers=int(args.num_workers), pin_memory=True, drop_last=True)
+    train_sampler = torch.utils.data.WeightedRandomSampler(dataset.weights, 
+                                                           len(dataset), 
+                                                           replacement=True, 
+                                                           generator=None)
+    train_dataloader = torch.utils.data.DataLoader(dataset, 
+                                                   batch_size=int(args.batch_size), 
+                                                   sampler=train_sampler,
+                                                   num_workers=int(args.num_workers), 
+                                                   pin_memory=False, 
+                                                   drop_last=True)
     
     trainer.train(
         model_dir,

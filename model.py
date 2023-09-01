@@ -327,7 +327,7 @@ class Trainer_pytorch:
                     .item()
                 )
                 total += torch.sum(mask[:, 0, :]).item()
-            
+
             # Save
             model_path = f"{save_dir}/epoch-{str(epoch + 1)}.model"
             torch.save(
@@ -374,7 +374,6 @@ class Trainer_pytorch:
 
     def predict(
         self,
-        predict_dataloader,
         results_dir,
         model_path,
         device,
@@ -410,11 +409,10 @@ class Trainer_pytorch:
                     _, predicted = torch.max(predictions[-1,:,:,-1].data, 1)
                     all_predictions.append(predicted.numpy(force=True))
                     i+= 1
-
                 prediction_list = np.concatenate(all_predictions)
             
                 recognition = []
-                recognition = np.concatenate((recognition, action_strs[0] * self.window_size))
+                recognition = np.concatenate((recognition, [action_strs[0]] * self.window_size))
                 for i, item in enumerate(prediction_list):
                     x = [action_strs[action_ids.index(item)]]
                     recognition = np.concatenate((recognition, x * self.sample_rate))
