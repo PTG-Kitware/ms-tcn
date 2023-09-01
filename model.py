@@ -112,6 +112,7 @@ class Trainer:
         self.model.train()
         self.model.to(device)
         optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
+        # TODO: Make similar to every other training loop...ever
         for epoch in range(num_epochs):
             epoch_loss = 0
             correct = 0
