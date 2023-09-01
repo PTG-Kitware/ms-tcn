@@ -56,7 +56,7 @@ class PTG_Dataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         item = dict({
             'features': self.feature_frames[idx:idx+self.window_size],
-            'GT' : self.target_frames[idx+self.window_size]
+            'GT' : self.target_frames[idx:idx+self.window_size]
         })
         return item
 
