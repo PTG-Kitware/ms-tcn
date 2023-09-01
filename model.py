@@ -255,3 +255,105 @@ class Trainer:
                 f_ptr.write(" ".join(recognition))
                 f_ptr.close()
         print(f"Saved predictions to: {results_dir}")
+
+class TemporalWindowTrainer:
+    def __init__(self, num_blocks, num_layers, num_f_maps, dim, num_classes):
+        self.num_classes = num_classes
+        
+        self.model = MultiStageModel(
+            num_blocks, num_layers, num_f_maps, dim, num_classes
+        )
+
+        self.loss_f = FocalLoss()
+        self.mse = nn.MSELoss(reduction="none")
+
+    def compute_loss(self, p, batch_target, mask):
+        loss = 0
+
+        loss += self.loss_f(
+            p.transpose(2, 1).contiguous().view(-1, self.num_classes),
+            batch_target.view(-1)
+        )
+
+        loss += smoothing_loss * torch.mean(
+            torch.clamp(
+                self.mse(
+                    F.log_softmax(p[:, :, 1:], dim=1),
+                    F.log_softmax(p.detach()[:, :, :-1], dim=1)
+                ),
+                min=0,
+                max=16
+            )
+            * mask[:, :, 1:]
+        )
+
+        return loss
+
+    def train(self, save_dir, train_dataloader, val_dataloader,
+              num_epochs, learning_rate, device, smoothing_loss):
+        """
+        """
+        self.model.train()
+        self.model.to(device)
+
+        optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
+
+        for epoch in range(1, num_epochs+1):
+            running_epoch_loss = 0
+            running_val_loss = 0
+
+            for batch_idx, batch_data in enumerate(train_dataloader):
+                batch_input, batch_target, mask = batch_data
+                batch_input, batch_target, mask = (
+                    batch_input.to(device),
+                    batch_target.to(device),
+                    mask.to(device)
+                )
+
+                # Zero gradients
+                optimizer.zero_grad()
+
+                # Predict on this batch
+                predictions = self.model(batch_input, mask)
+
+                # Compute loss and gradients
+                p = predictions[-1]
+                loss = compute_loss(p, batch_target, mask)
+                loss.backward()
+            
+                running_epoch_loss += loss.item()
+
+                # Adjust learning weights
+                optimizer.step()
+
+            # Validation
+            with torch.no_grad():
+                for i, vdata in enumerate(val_dataloader):
+                    val_inputs, val_targets, val_mask = vdata
+                    val_predictions = self.model(val_inputs, val_mask)
+                    val_p = val_predictions[-1]
+
+                    val_loss = self.compute_loss(val_p, val_targets, val_mask)
+                    running_val_loss += val_loss
+
+            avg_val_loss = running_val_loss / (i+1)
+
+            # Save
+            torch.save(
+                self.model.state_dict(),
+                f"{save_dir}/epoch-{epoch}.model"
+            )
+            torch.save(
+                optimizer.state_dict(),
+                f"{save_dir}/epoch-{epoch}.opt"
+            )
+
+            # Print status
+            epoch_loss = running_epoch_loss / len(train_dataloader)
+            print(
+                f"[epoch {epoch}]: epoch loss = {epoch_loss}",
+                f"val loss: {avg_val_loss}"
+            )
+
+
+

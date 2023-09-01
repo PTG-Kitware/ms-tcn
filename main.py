@@ -4,8 +4,9 @@ import argparse
 import random
 
 from eval import eval
-from model import Trainer
+from model import Trainer, TemporalWindowTrainer
 from batch_gen import BatchGenerator
+from dataset import PTG_Dataset
 
 
 #####################
@@ -22,7 +23,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--action", default="train")
 # parser.add_argument('--dataset', default="gtea")
 parser.add_argument("--split", default="1")
-
+parser.add_argument("--batch_size", default=10, type=int)
+parser.add_argument("--num_workers", default=0, type=int)
+parser.add_argument("--window_size", default=30, type=int)
 args = parser.parse_args()
 
 num_stages = 4
@@ -60,21 +63,14 @@ mapping_file = f"{exp_data}/mapping.txt"
 # Outputs
 output_dir = f"/data/PTG/cooking/training/activity_classifier/TCN"
 
-save_dir = f"{output_dir}/{exp_name}_val"
-if not os.path.exists(save_dir):
-    os.makedirs(save_dir)
-
+save_dir = f"{output_dir}/{exp_name}_test"
 model_dir = f"{save_dir}/models/split_{args.split}"
-if not os.path.exists(model_dir):
-    os.makedirs(model_dir)
-
 results_dir = f"{save_dir}/results/split_{args.split}"
-if not os.path.exists(results_dir):
-    os.makedirs(results_dir)
-
 eval_output = f"{results_dir}/eval"
-if not os.path.exists(eval_output):
-    os.makedirs(eval_output)
+
+for output_d in [save_dir, model_dir, results_dir, eval_output]:
+    if not os.path.exists(output_d):
+        os.makedirs(output_d)
 
 #####################
 # Labels
@@ -89,23 +85,43 @@ for a in actions:
 num_classes = len(actions_dict)
 
 #####################
+# Dataset
+#####################
+train_dataset = PTG_Dataset(
+    vid_list_file, num_classes, actions_dict, gt_path, features_path,
+    sample_rate, args.window_size
+)
+sampler = torch.utils.data.WeightedRandomSampler(
+    train_dataset.weights, len(train_dataset),
+    replacement=True, generator=None
+)
+train_dataloader = torch.utils.data.DataLoader(
+    train_dataset, batch_size=args.batch_size, sampler=sampler,
+    num_workers=args.num_workers, pin_memory=True, drop_last=True
+)
+
+val_dataset = PTG_Dataset(
+    vid_list_file_val, num_classes, actions_dict, gt_path, features_path,
+    sample_rate, args.window_size
+)
+val_dataloader = torch.utils.data.DataLoader(
+    val_dataset, batch_size=args.batch_size, sampler=None,
+    num_workers=args.num_workers, pin_memory=True, drop_last=True
+)
+
+#####################
 # Train
 #####################
-trainer = Trainer(num_stages, num_layers, num_f_maps, features_dim, num_classes)
+trainer = TemporalWindowTrainer(num_stages, num_layers, num_f_maps, features_dim, num_classes)
 if args.action == "train":
-    batch_gen = BatchGenerator(
-        num_classes, actions_dict, gt_path, features_path, sample_rate
-    )
-    batch_gen.read_data(vid_list_file)
     trainer.train(
         model_dir,
-        batch_gen,
+        train_dataloader,
+        val_dataloader,
         num_epochs=num_epochs,
-        batch_size=bz,
         learning_rate=lr,
         device=device,
         smoothing_loss=smoothing_loss,
-        vid_list_file_val=vid_list_file_val
     )
 
 if args.action == "predict":
