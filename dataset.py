@@ -49,16 +49,25 @@ class PTG_Dataset(torch.utils.data.Dataset):
         self.weights = np.zeros((self.dataset_size))
         for i in range(self.dataset_size):
             self.weights[i] = class_lookup[self.target_frames[i+self.window_size]]
+        # set weights to 0 for frames before window length
+        # so they don't get picked
+        self.weights[:self.window_size] = 0
 
     def __len__(self):
         return self.dataset_size
 
     def __getitem__(self, idx):
-        features = self.feature_frames[idx:idx+self.window_size]
-        target = self.target_frames[idx:idx+self.window_size]
+        """Grab a window of frames ending at ``idx``
+
+        :param idx: The last index of the window
+
+        :return: features, targets, and mask of the window
+        """
+        idx = idx + 1 # adjust to make sure we end at ``idx``
+        features = self.feature_frames[idx-self.window_size:idx]
+        target = self.target_frames[idx-self.window_size:idx]
         mask = np.zeros((target.shape[0]))
         mask[-1] = 1
-
 
         # TODO: Add Transforms/Augmentations
         return features, target, mask
