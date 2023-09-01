@@ -257,7 +257,8 @@ class Trainer:
         print(f"Saved predictions to: {results_dir}")
 
 class TemporalWindowTrainer:
-    def __init__(self, num_blocks, num_layers, num_f_maps, dim, num_classes):
+    def __init__(self, num_blocks, num_layers, num_f_maps,
+                 dim, num_classes, smoothing_loss):
         self.num_classes = num_classes
         
         self.model = MultiStageModel(
@@ -265,6 +266,8 @@ class TemporalWindowTrainer:
         )
 
         self.loss_f = FocalLoss()
+
+        self.smoothing_loss = smoothing_loss
         self.mse = nn.MSELoss(reduction="none")
 
     def compute_loss(self, p, batch_target, mask):
@@ -275,7 +278,7 @@ class TemporalWindowTrainer:
             batch_target.view(-1)
         )
 
-        loss += smoothing_loss * torch.mean(
+        loss += self.smoothing_loss * torch.mean(
             torch.clamp(
                 self.mse(
                     F.log_softmax(p[:, :, 1:], dim=1),
@@ -290,7 +293,7 @@ class TemporalWindowTrainer:
         return loss
 
     def train(self, save_dir, train_dataloader, val_dataloader,
-              num_epochs, learning_rate, device, smoothing_loss):
+              num_epochs, learning_rate, device):
         """
         """
         self.model.train()
@@ -304,8 +307,9 @@ class TemporalWindowTrainer:
 
             for batch_idx, batch_data in enumerate(train_dataloader):
                 batch_input, batch_target, mask = batch_data
+                batch_input = batch_input.transpose(2, 1)
                 batch_input, batch_target, mask = (
-                    batch_input.to(device),
+                    batch_input.to(device, dtype=torch.float),
                     batch_target.to(device),
                     mask.to(device)
                 )
@@ -318,7 +322,7 @@ class TemporalWindowTrainer:
 
                 # Compute loss and gradients
                 p = predictions[-1]
-                loss = compute_loss(p, batch_target, mask)
+                loss = self.compute_loss(p, batch_target, mask)
                 loss.backward()
             
                 running_epoch_loss += loss.item()

@@ -32,7 +32,7 @@ class PTG_Dataset(torch.utils.data.Dataset):
 
             input_frames_list.append(features[:, :: self.sample_rate])
             target_frames_list.append(classes[:: self.sample_rate])
-
+        
         self.feature_frames = np.concatenate(input_frames_list, axis=1).transpose()
         self.target_frames = np.concatenate(target_frames_list, axis=0, dtype=int, casting='unsafe')
 
@@ -64,12 +64,18 @@ class PTG_Dataset(torch.utils.data.Dataset):
         :return: features, targets, and mask of the window
         """
         idx = idx + 1 # adjust to make sure we end at ``idx``
+        
         features = self.feature_frames[idx-self.window_size:idx]
         target = self.target_frames[idx-self.window_size:idx]
-        mask = np.zeros((target.shape[0]))
-        mask[-1] = 1
+
+        mask = torch.ones(
+            self.num_classes,
+            self.window_size,
+            dtype=torch.float
+        )
 
         # TODO: Add Transforms/Augmentations
+        
         return features, target, mask
 
 

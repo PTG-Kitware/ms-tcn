@@ -30,9 +30,8 @@ args = parser.parse_args()
 
 num_stages = 4
 num_layers = 10
-num_f_maps = 64
+num_f_maps = args.window_size
 features_dim = 204  # 2048
-bz = 1
 lr = 0.0005
 num_epochs = 200
 smoothing_loss = 0.015
@@ -91,6 +90,7 @@ train_dataset = PTG_Dataset(
     vid_list_file, num_classes, actions_dict, gt_path, features_path,
     sample_rate, args.window_size
 )
+train_dataset[len(train_dataset)-1]
 sampler = torch.utils.data.WeightedRandomSampler(
     train_dataset.weights, len(train_dataset),
     replacement=True, generator=None
@@ -112,7 +112,14 @@ val_dataloader = torch.utils.data.DataLoader(
 #####################
 # Train
 #####################
-trainer = TemporalWindowTrainer(num_stages, num_layers, num_f_maps, features_dim, num_classes)
+trainer = TemporalWindowTrainer(
+    num_stages,
+    num_layers,
+    num_f_maps,
+    features_dim,
+    num_classes,
+    smoothing_loss
+)
 if args.action == "train":
     trainer.train(
         model_dir,
@@ -121,7 +128,6 @@ if args.action == "train":
         num_epochs=num_epochs,
         learning_rate=lr,
         device=device,
-        smoothing_loss=smoothing_loss,
     )
 
 if args.action == "predict":
