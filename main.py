@@ -11,7 +11,8 @@ from dataset import PTG_Dataset
 #####################
 # Arguments
 #####################
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device=1
 seed = 1538574472
 random.seed(seed)
 torch.manual_seed(seed)
