@@ -54,11 +54,12 @@ class PTG_Dataset(torch.utils.data.Dataset):
         return self.dataset_size
 
     def __getitem__(self, idx):
-        item = dict({
-            'features': self.feature_frames[idx:idx+self.window_size],
-            'GT' : self.target_frames[idx:idx+self.window_size]
-        })
-        return item
+        features = self.feature_frames[idx:idx+self.window_size]
+        target = self.target_frames[idx:idx+self.window_size]
+        mask = np.zeros((target.shape[0]))
+        mask[-1] = 1
+
+        return features, target, mask
 
 
 
