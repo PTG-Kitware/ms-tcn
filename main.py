@@ -5,7 +5,7 @@ import random
 
 from eval import eval
 from model import Trainer
-from batch_gen import BatchGenerator
+from batch_gen import BatchGenerator, TemporalWindowBatchGenerator
 
 
 #####################
@@ -60,7 +60,7 @@ mapping_file = f"{exp_data}/mapping.txt"
 # Outputs
 output_dir = f"/data/PTG/cooking/training/activity_classifier/TCN"
 
-save_dir = f"{output_dir}/{exp_name}_val"
+save_dir = f"{output_dir}/{exp_name}_temp"
 if not os.path.exists(save_dir):
     os.makedirs(save_dir)
 
@@ -93,10 +93,12 @@ num_classes = len(actions_dict)
 #####################
 trainer = Trainer(num_stages, num_layers, num_f_maps, features_dim, num_classes)
 if args.action == "train":
-    batch_gen = BatchGenerator(
-        num_classes, actions_dict, gt_path, features_path, sample_rate
+    batch_gen = TemporalWindowBatchGenerator(
+        num_classes, actions_dict, gt_path, features_path, batch_size=2
     )
+    batch_gen.create_weights()
     batch_gen.read_data(vid_list_file)
+
     trainer.train(
         model_dir,
         batch_gen,
