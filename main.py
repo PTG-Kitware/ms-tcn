@@ -122,7 +122,7 @@ if args.action == "train":
                                                    batch_size=int(args.batch_size), 
                                                    sampler=train_sampler,
                                                    num_workers=int(args.num_workers), 
-                                                   pin_memory=False, 
+                                                   pin_memory=True, 
                                                    drop_last=True)
     
     trainer.train(

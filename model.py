@@ -320,13 +320,13 @@ class Trainer_pytorch:
                 loss.backward()
                 optimizer.step()
 
-                _, predicted = torch.max(predictions[-1].data, 1)
+                _, predicted = torch.max(predictions[-1,:,:,-1].data, 1)
                 correct += (
-                    ((predicted == batch_target).float() * mask[:, 0, :].squeeze(1))
+                    ((predicted == batch_target[:,-1]).float() * mask[:, 0, -1])
                     .sum()
                     .item()
                 )
-                total += torch.sum(mask[:, 0, :]).item()
+                total += torch.sum(mask[:, 0, -1]).item()
 
             # Save
             model_path = f"{save_dir}/epoch-{str(epoch + 1)}.model"
