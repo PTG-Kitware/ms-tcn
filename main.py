@@ -30,7 +30,7 @@ args = parser.parse_args()
 
 num_stages = 4
 num_layers = 10
-num_f_maps = args.window_size
+num_f_maps = 64
 features_dim = 204  # 2048
 lr = 0.0005
 num_epochs = 200
@@ -86,6 +86,7 @@ num_classes = len(actions_dict)
 #####################
 # Dataset
 #####################
+# Train
 train_dataset = PTG_Dataset(
     vid_list_file, num_classes, actions_dict, gt_path, features_path,
     sample_rate, args.window_size
@@ -99,15 +100,31 @@ train_dataloader = torch.utils.data.DataLoader(
     train_dataset, batch_size=args.batch_size, sampler=sampler,
     num_workers=args.num_workers, pin_memory=True, drop_last=True
 )
+print(f"Loaded the train dataset from {vid_list_file}")
 
+# Val
 val_dataset = PTG_Dataset(
     vid_list_file_val, num_classes, actions_dict, gt_path, features_path,
     sample_rate, args.window_size
 )
+val_sampler = torch.utils.data.SequentialSampler(val_dataset)
 val_dataloader = torch.utils.data.DataLoader(
-    val_dataset, batch_size=args.batch_size, sampler=None,
+    val_dataset, batch_size=args.batch_size, sampler=val_sampler,
     num_workers=args.num_workers, pin_memory=True, drop_last=True
 )
+print(f"Loaded the validation dataset from {vid_list_file_val}")
+
+# Test
+test_dataset = PTG_Dataset(
+    vid_list_file_tst, num_classes, actions_dict, gt_path, features_path,
+    sample_rate, args.window_size
+)
+test_sampler = torch.utils.data.SequentialSampler(test_dataset)
+test_dataloader = torch.utils.data.DataLoader(
+    test_dataset, batch_size=args.batch_size, sampler=test_sampler,
+    num_workers=args.num_workers, pin_memory=True, drop_last=True
+)
+print(f"Loaded the test dataset from {vid_list_file_tst}")
 
 #####################
 # Train
@@ -131,6 +148,7 @@ if args.action == "train":
     )
 
 if args.action == "predict":
+    raise NotImplementedError
     trainer.predict(
         model_dir,
         results_dir,

@@ -321,8 +321,9 @@ class TemporalWindowTrainer:
                 predictions = self.model(batch_input, mask)
 
                 # Compute loss and gradients
-                p = predictions[-1]
-                loss = self.compute_loss(p, batch_target, mask)
+                loss = 0
+                for p in predictions:
+                    loss += self.compute_loss(p, batch_target, mask)
                 loss.backward()
             
                 running_epoch_loss += loss.item()
@@ -355,7 +356,7 @@ class TemporalWindowTrainer:
             # Print status
             epoch_loss = running_epoch_loss / len(train_dataloader)
             print(
-                f"[epoch {epoch}]: epoch loss = {epoch_loss}",
+                f"[epoch {epoch}]: epoch loss = {epoch_loss}" +
                 f"val loss: {avg_val_loss}"
             )
 
