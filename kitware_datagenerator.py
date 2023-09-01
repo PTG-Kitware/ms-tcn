@@ -129,6 +129,8 @@ for split in training_split.keys():
             ann_by_image,
             feat_version=feat_version
         )
+        # TODO normalize to 0-1
+
         # num obj det classes x num frames
         if feat_version == 1:
             X = X.reshape(num_classes, -1)
