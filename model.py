@@ -384,19 +384,19 @@ class Trainer_pytorch:
                 total += torch.sum(mask[:, 0, -1]).item()
 
             # Save
-            model_path = f"{save_dir}/epoch-{str(epoch + 1)}.model"
+            model_path = f"{save_dir}/epoch-{str(epoch)}.model"
             torch.save(
                 self.model.state_dict(),
                 model_path,
             )
             torch.save(
-                optimizer.state_dict(), f"{save_dir}/epoch-{str(epoch + 1)}.opt"
+                optimizer.state_dict(), f"{save_dir}/epoch-{str(epoch)}.opt"
             )
 
             # Validation accuracy
             if epoch % 10 == 0:
                 val_results = f"{save_dir}/val"
-                val_results_dir = f"{val_results}/epoch_{epoch+1}"
+                val_results_dir = f"{val_results}/epoch_{epoch}"
                 val_eval_results_dir = f"{val_results_dir}/eval"
 
                 for results_dir in [val_results, val_results_dir, val_eval_results_dir]:
@@ -438,7 +438,7 @@ class Trainer_pytorch:
 
         :param videos: List of video filenames to predict on
         :param results_dir: Directoy to write predictions to
-        :param model_path: Path to the model
+        :param model_path: Path to the model file
         :param device: GPU id or "cpu"
         """
         action_ids = list(self.actions_dict.values())
