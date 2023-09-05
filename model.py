@@ -263,7 +263,7 @@ class Trainer:
 class Trainer_pytorch:
     def __init__(self, num_blocks, num_layers, num_f_maps, dim, num_classes,
                   actions_dict, gt_path, features_path, sample_rate,
-                  window_size, val_videos, val_batch_size):
+                  window_size, val_videos, val_batch_size, smoothing_loss):
         """Constructor method
 
         :param num_blocks:
@@ -287,6 +287,7 @@ class Trainer_pytorch:
         self.window_size = window_size
         self.val_videos = val_videos
         self.val_batch_size = val_batch_size
+        self.smoothing_loss = smoothing_loss
         
         # Model
         self.model = MultiStageModel(
@@ -313,7 +314,7 @@ class Trainer_pytorch:
             batch_target.view(-1),
         )
                     
-        loss += smoothing_loss * torch.mean(
+        loss += self.smoothing_loss * torch.mean(
             torch.clamp(
                 self.mse(
                     F.log_softmax(p[:, :, 1:], dim=1),
@@ -328,7 +329,7 @@ class Trainer_pytorch:
         return loss
 
     def train(self, save_dir, train_dataloader, num_epochs, 
-              learning_rate, device, smoothing_loss):
+              learning_rate, device):
         """Training loop
 
         :param save_dir: Path to save each epoch's model and optimizer to
@@ -343,6 +344,8 @@ class Trainer_pytorch:
         
         optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
 
+        val_loss = 0
+        acc = 0
         for epoch in range(1, num_epochs+1):
             epoch_loss = 0
             correct = 0
@@ -354,7 +357,6 @@ class Trainer_pytorch:
                     batch_target.to(device),
                     mask.to(device),
                 )
-
                 # Zero gradients
                 optimizer.zero_grad()
 
@@ -363,8 +365,9 @@ class Trainer_pytorch:
 
                 # Compute loss and gradients
                 loss = 0
+                val_loss = 0
                 for p in predictions:
-                    loss += compute_loss(p, batch_target, mask)
+                    loss += self.compute_loss(p, batch_target, mask)
 
                 epoch_loss += loss.item()
                 loss.backward()

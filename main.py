@@ -63,7 +63,7 @@ mapping_file = f"{exp_data}/mapping.txt"
 
 # Outputs
 output_dir = f"/data/PTG/cooking/training/activity_classifier/TCN"
-save_dir = f"{output_dir}/{exp_name}_val_debug"
+save_dir = f"{output_dir}/{exp_name}_windows"
 
 model_dir = f"{save_dir}/models/split_{args.split}"
 results_dir = f"{save_dir}/results/split_{args.split}"
@@ -105,7 +105,7 @@ with open(vid_list_file_tst, "r") as test_f:
 trainer = Trainer_pytorch(
     num_stages, num_layers, num_f_maps, features_dim, 
     num_classes,actions_dict, gt_path, features_path, 
-    sample_rate, args.window_size, val_videos, val_batch_size
+    sample_rate, args.window_size, val_videos, val_batch_size, smoothing_loss
 )
 
 #####################
@@ -138,7 +138,6 @@ if args.action == "train":
         num_epochs=num_epochs,
         learning_rate=lr,
         device=device,
-        smoothing_loss=smoothing_loss,
     )
 
 if args.action == "predict":
