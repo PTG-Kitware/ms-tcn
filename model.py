@@ -465,13 +465,15 @@ class Trainer_pytorch:
                 all_predictions = []
                 for batch_input, batch_target, mask in ub.ProgIter(predict_dataloader, desc="Predicting videos"):
                     batch_input = batch_input.transpose(2, 1)
-                    batch_input.to(device)
-                    batch_target.to(device)
-                    mask.to(device)
+                    batch_input, batch_target, mask = (
+                        batch_input.to(device),
+                        batch_target.to(device),
+                        mask.to(device),
+                    )
                     
                     predictions = self.model(batch_input, mask)
                     _, predicted = torch.max(predictions[-1,:,:,-1].data, 1)
-                    all_predictions.append(predicted.numpy(force=True))
+                    all_predictions.append(predicted.detach().cpu().numpy())
                     
                     for p in predictions:
                         running_loss += self.compute_loss(p, batch_target, mask)

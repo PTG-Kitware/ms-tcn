@@ -140,13 +140,15 @@ if args.action == "train":
         device=device,
     )
 
+
 if args.action == "predict":
+    epoch = 5 # 4
+    model_file = f"{model_dir}/epoch-{str(epoch)}.model"
     trainer.predict(
-        results_dir,
         test_videos,
-        model_dir,
-        vid_list_file_tst,
-        device,
+        results_dir,
+        model_file,
+        0#device,
     )
 
 #####################
