@@ -393,28 +393,28 @@ class Trainer_pytorch:
                 optimizer.state_dict(), f"{save_dir}/epoch-{str(epoch)}.opt"
             )
 
-            # Validation accuracy
-            if epoch % 10 == 0:
-                val_results = f"{save_dir}/val"
-                val_results_dir = f"{val_results}/epoch_{epoch}"
-                val_eval_results_dir = f"{val_results_dir}/eval"
+            # Validation accuracy + loss
+            val_results = f"{save_dir}/val"
+            val_results_dir = f"{val_results}/epoch_{epoch}"
+            val_eval_results_dir = f"{val_results_dir}/eval"
 
-                for results_dir in [val_results, val_results_dir, val_eval_results_dir]:
-                    if not os.path.exists(results_dir):
-                        os.makedirs(results_dir)
+            for results_dir in [val_results, val_results_dir, val_eval_results_dir]:
+                if not os.path.exists(results_dir):
+                    os.makedirs(results_dir)
 
-                val_preds, val_loss = self.predict(
-                    self.val_videos,
-                    val_results_dir,
-                    model_path,
-                    device,
-                )
+            val_preds, val_loss = self.predict(
+                self.val_videos,
+                val_results_dir,
+                model_path,
+                device,
+            )
 
-                acc, recall, f1 = eval( self.val_videos,
-                                        self.gt_path,
-                                        val_results_dir,
-                                        val_eval_results_dir
-                                    )
+            acc, recall, f1 = eval( self.val_videos,
+                                    self.gt_path,
+                                    val_results_dir,
+                                    val_eval_results_dir
+                                )
+            
             # Print
             print(
                 "[epoch %d]: epoch loss = %f,   val loss = %f,    acc = %f,   val acc = %f"
@@ -440,19 +440,23 @@ class Trainer_pytorch:
         :param results_dir: Directoy to write predictions to
         :param model_path: Path to the model file
         :param device: GPU id or "cpu"
+
+        :return: List of predictions, the loss
         """
         action_ids = list(self.actions_dict.values())
         action_strs = list(self.actions_dict.keys())
         # Load Vidoes
         self.model.eval()
-        for vid in videos:
+        for vid in ub.ProgIter(videos, desc="Predicting videos"):
             dataset = PTG_Dataset(
                 [vid], self.num_classes, self.actions_dict, self.gt_path, 
                 self.features_path, self.sample_rate, self.window_size
                 )
             predict_sampler = torch.utils.data.SequentialSampler(dataset)
-            predict_dataloader = torch.utils.data.DataLoader(dataset, batch_size=self.val_batch_size, sampler=predict_sampler,
-                num_workers=0, pin_memory=True, drop_last=False)
+            predict_dataloader = torch.utils.data.DataLoader(
+                dataset, batch_size=self.val_batch_size, sampler=predict_sampler,
+                num_workers=0, pin_memory=True, drop_last=False
+            )
 
             with torch.no_grad():
                 self.model.to(device)
@@ -463,7 +467,7 @@ class Trainer_pytorch:
                 i = 0
                 running_loss = 0
                 all_predictions = []
-                for batch_input, batch_target, mask in ub.ProgIter(predict_dataloader, desc="Predicting videos"):
+                for batch_input, batch_target, mask in predict_dataloader:
                     batch_input = batch_input.transpose(2, 1)
                     batch_input, batch_target, mask = (
                         batch_input.to(device),
@@ -488,10 +492,10 @@ class Trainer_pytorch:
                     x = [action_strs[action_ids.index(item)]]
                     recognition = np.concatenate((recognition, x * self.sample_rate))
                 f_name = vid.split("/")[-1].split(".")[0]
-                with open(results_dir + "/" + f_name + ".txt", "w") as f_ptr:
+                with open(f"{results_dir}/{f_name}.txt", "w") as f_ptr:
                     f_ptr.write("### Frame level recognition: ###\n")
                     f_ptr.write(" ".join(recognition))
         
         print(f"Saved predictions to: {results_dir}")
-        return predictions, loss
+        return prediction_list, loss
 
