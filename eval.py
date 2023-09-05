@@ -1,4 +1,3 @@
-#!/usr/bin/python2.7
 # adapted from: https://github.com/colincsl/TemporalConvolutionalNetworks/blob/master/code/metrics.py
 import os
 import argparse
@@ -97,18 +96,16 @@ def f_score(recognized, ground_truth, overlap, bg_class=["background"]):
     fn = len(y_label) - sum(hits)
     return float(tp), float(fp), float(fn)
 
-def eval(file_list: str, ground_truth_path: str,
+def eval(list_of_videos: list, ground_truth_path: str,
         recog_path: str, eval_output: str):
     """Run evaluation
 
-    :param file_list: Path to the test bundle file
+    :param list_of_videos: List of video names
     :param ground_truth_path: Path to the ``groundTruth`` folder
     :param recog_path: Path to the predicition results
         (obtained by running with ``action=predict``)
     :param eval_output: Path to save the metrics and figures to
     """
-    list_of_videos = read_file(file_list).split("\n")[:-1]
-
     overlap = [0.1, 0.25, 0.5]
     tp, fp, fn = np.zeros(3), np.zeros(3), np.zeros(3)
 
@@ -143,13 +140,15 @@ def eval(file_list: str, ground_truth_path: str,
 
     # Metrics
     with open(f"{eval_output}/metrics.txt", "w") as f:
-        acc = "Acc: %.4f" % (100 * float(correct) / total)
-        print(acc)
-        f.write(f"{acc}\n")
+        acc = float(correct) / total
+        acc_str = "Acc: %.4f" % (100 * acc)
+        print(acc_str)
+        f.write(f"{acc_str}\n")
 
-        edit = "Edit: %.4f" % ((1.0 * edit) / len(list_of_videos))
-        print(edit)
-        f.write(f"{edit}\n")
+        edit = (1.0 * edit) / len(list_of_videos)
+        edit_str = "Edit: %.4f" % (edit)
+        print(edit_str)
+        f.write(f"{edit_str}\n")
         for s in range(len(overlap)):
             precision = tp[s] / float(tp[s] + fp[s])
             recall = tp[s] / float(tp[s] + fn[s])
@@ -183,3 +182,5 @@ def eval(file_list: str, ground_truth_path: str,
     print(f"cm precision: {np.mean(precision)}")
 
     print(f"Saved eval results to: {eval_output}")
+
+    return acc, recall, f1
